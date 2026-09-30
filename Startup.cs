@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using TaskManagement.Lambda.Services;
 using TaskManagement.Lambda.Services.Interface;
+using TaskManagement.Lambda.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskManagement.Lambda
 {
@@ -16,6 +18,17 @@ namespace TaskManagement.Lambda
                 throw new InvalidOperationException(
                     "FIREBASE_CREDENTIALS environment variable is not configured.");
             }
+            var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "DB_CONNECTION_STRING is missing from environment variables."
+                );
+            }
+
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(connectionString)
+            );
             // Register application services
             services.AddScoped<INotificationService, NotificationService>();
             services.AddSingleton<IFirebaseService>(
