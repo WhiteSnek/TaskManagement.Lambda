@@ -60,15 +60,15 @@ jobs:
       # 7. Update Lambda environment variables
       - name: Update Lambda environment variables
         env:
-          FCM_TOKEN: ${{ secrets.FCM_TOKEN }}
+          FCM_TOKEN: ${{ secrets.DB_CONNECTION_STRING }}
           FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
         run: |
           ENVIRONMENT=$(jq -n \
-            --arg token "$FCM_TOKEN" \
+            --arg db "$DB_CONNECTION_STRING" \
             --arg creds "$FIREBASE_CREDENTIALS" \
             '{
               Variables: {
-                FCM_TOKEN: $token,
+                DB_CONNECTION_STRING: $db,
                 FIREBASE_CREDENTIALS: $creds
               }
             }')
