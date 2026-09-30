@@ -46,7 +46,7 @@ jobs:
 
       # 5. Restore dependencies
       - name: Restore dependencies
-        run: dotnet restore ./TaskManagement.Api.csproj
+        run: dotnet restore ./TaskManagement.Lambda.csproj
 
       # 6. Package the Lambda application
       - name: Package Lambda
@@ -70,8 +70,7 @@ jobs:
             '{
               Variables: {
                 FCM_TOKEN: $token,
-                FIREBASE_CREDENTIALS: $creds,
-                IDP_CLIENT_ID: $client
+                FIREBASE_CREDENTIALS: $creds
               }
             }')
 
