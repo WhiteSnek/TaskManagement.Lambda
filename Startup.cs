@@ -3,6 +3,8 @@ using TaskManagement.Lambda.Services;
 using TaskManagement.Lambda.Services.Interface;
 using TaskManagement.Lambda.Data;
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Lambda.Repositories.Interface;
+using TaskManagement.Lambda.Repositories;
 
 namespace TaskManagement.Lambda
 {
@@ -31,8 +33,13 @@ namespace TaskManagement.Lambda
             );
             // Register application services
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ITaskService, TaskService>();
             services.AddSingleton<IFirebaseService>(
                 _ => new FirebaseService(firebaseCreds));
+
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<ITaskRepository, TaskRepository>();
             return services.BuildServiceProvider();
         }
     }
