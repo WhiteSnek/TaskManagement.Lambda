@@ -1,0 +1,105 @@
+
+name: Deploy Task Management Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: true
+        type: string
+        default: "master"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and Deploy Lambda
+    runs-on: ubuntu-latest
+    environment: PROD
+
+    steps:
+      # 1. Checkout the selected branch
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      # 2. Setup .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # 3. Install AWS Lambda .NET tools
+      - name: Install Lambda Tools
+        run: dotnet tool install -g Amazon.Lambda.Tools
+
+      # 4. Configure AWS using GitHub OIDC
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # 5. Restore dependencies
+      - name: Restore dependencies
+        run: dotnet restore ./TaskManagement.Api.csproj
+
+      # 6. Package the Lambda application
+      - name: Package Lambda
+        run: |
+          dotnet lambda package \
+            --project-location . \
+            --configuration Release \
+            --framework net10.0 \
+            --output-package ./lambda-deploy.zip
+
+      # 7. Update Lambda environment variables
+      - name: Update Lambda environment variables
+        env:
+          FCM_TOKEN: ${{ secrets.FCM_TOKEN }}
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+        run: |
+          ENVIRONMENT=$(jq -n \
+            --arg token "$FCM_TOKEN" \
+            --arg creds "$FIREBASE_CREDENTIALS" \
+
+            '{
+              Variables: {
+                FCM_TOKEN: $token,
+                FIREBASE_CREDENTIALS: $creds,
+                IDP_CLIENT_ID: $client
+              }
+            }')
+
+          aws lambda update-function-configuration \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --environment "$ENVIRONMENT"
+
+      # 8. Wait for configuration update
+      - name: Wait for Lambda configuration update
+        run: |
+          aws lambda wait function-updated \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}"
+
+      # 9. Deploy the package
+      - name: Deploy Lambda package
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --zip-file fileb://lambda-deploy.zip
+
+      # 10. Wait for deployment to finish
+      - name: Wait for deployment
+        run: |
+          aws lambda wait function-updated \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}"
+
+      - name: Deployment summary
+        run: |
+          echo "Deployment completed successfully."
+          echo "Branch: ${{ inputs.branch }}"
+          echo "Function: ${{ secrets.LAMBDA_FUNCTION_NAME }}"
